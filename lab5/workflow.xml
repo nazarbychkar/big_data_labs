@@ -1,0 +1,108 @@
+<workflow-app xmlns="uri:oozie:workflow:0.5" name="OozieLab5-Workflow">
+
+    <global>
+        <job-tracker>${jobTracker}</job-tracker>
+        <name-node>${nameNode}</name-node>
+        <configuration>
+            <property>
+                <name>oozie.launcher.yarn.app.mapreduce.am.resource.mb</name>
+                <value>512</value>
+            </property>
+            <property>
+                <name>oozie.launcher.yarn.app.mapreduce.am.command-opts</name>
+                <value>-Xmx400m</value>
+            </property>
+            <property>
+                <name>oozie.launcher.mapreduce.map.memory.mb</name>
+                <value>512</value>
+            </property>
+            <property>
+                <name>oozie.launcher.mapreduce.map.java.opts</name>
+                <value>-Xmx400m</value>
+            </property>
+            <!-- для дочірніх MapReduce-робіт -->
+            <property>
+                <name>yarn.app.mapreduce.am.resource.mb</name>
+                <value>512</value>
+            </property>
+            <property>
+                <name>yarn.app.mapreduce.am.command-opts</name>
+                <value>-Xmx400m</value>
+            </property>
+            <property>
+                <name>mapreduce.map.memory.mb</name>
+                <value>512</value>
+            </property>
+            <property>
+                <name>mapreduce.reduce.memory.mb</name>
+                <value>512</value>
+            </property>
+            <property>
+                <name>mapreduce.map.java.opts</name>
+                <value>-Xmx400m</value>
+            </property>
+            <property>
+                <name>mapreduce.reduce.java.opts</name>
+                <value>-Xmx400m</value>
+            </property>
+        </configuration>
+    </global>
+
+    <start to="mapreduce-action"/>
+
+    <!-- 1. MapReduce (лаб. 2) -->
+    <action name="mapreduce-action">
+        <java>
+            <job-tracker>${jobTracker}</job-tracker>
+            <name-node>${nameNode}</name-node>
+            <prepare>
+                <delete path="${mapredOutput}"/>
+            </prepare>
+            <main-class>YearlyCloseSum</main-class>
+            <arg>${nameNode}</arg>
+            <arg>${inputPath}</arg>
+            <arg>${mapredOutput}</arg>
+        </java>
+        <ok to="pig-action"/>
+        <error to="fail"/>
+    </action>
+
+    <!-- 2. Pig (лаб. 3) -->
+    <action name="pig-action">
+        <pig>
+            <job-tracker>${jobTracker}</job-tracker>
+            <name-node>${nameNode}</name-node>
+            <prepare>
+                <delete path="${pigOutput}"/>
+            </prepare>
+            <script>script_lab3_Bychkar.pig</script>
+            <param>OUTPUT=${pigOutput}</param>
+        </pig>
+        <ok to="hive-action"/>
+        <error to="fail"/>
+    </action>
+
+    <!-- 3. Hive (лаб. 4) -->
+    <action name="hive-action">
+        <hive xmlns="uri:oozie:hive-action:0.2">
+            <job-tracker>${jobTracker}</job-tracker>
+            <name-node>${nameNode}</name-node>
+            <!-- <job-xml>hive-site.xml</job-xml> -->
+            <configuration>
+              <property>
+                  <name>hive.metastore.uris</name>
+                  <value>thrift://hadoop-master:9083</value>
+              </property>
+          </configuration>
+          <script>query_lab4.q</script>
+        </hive>
+        <ok to="end"/>
+        <error to="fail"/>
+    </action>
+
+    <kill name="fail">
+        <message>Oozie workflow failed, error message: ${wf:errorMessage(wf:lastErrorNode())}</message>
+    </kill>
+
+    <end name="end"/>
+</workflow-app>
